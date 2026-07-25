@@ -704,12 +704,24 @@ function setComment(catId, itemId, val){
   const item = cat.items.find(i=>i.id===itemId);
   item.comment = val;
 }
+const DELETE_PIN = "Ts512512";
+function checkDeletePin(){
+  const entered = prompt('اكتب الرمز السري للحذف:');
+  if(entered === null) return false;
+  if(entered !== DELETE_PIN){
+    alert('رمز غلط، ما تم الحذف.');
+    return false;
+  }
+  return true;
+}
 function deleteItem(catId, itemId){
+  if(!checkDeletePin()) return;
   const cat = state.cats.find(c=>c.id===catId);
   cat.items = cat.items.filter(i=>i.id!==itemId);
   render();
 }
 function deleteCategory(catId){
+  if(!checkDeletePin()) return;
   state.cats = state.cats.filter(c=>c.id!==catId);
   render();
 }
@@ -861,6 +873,7 @@ function loadInspectionFromCache(key){
 }
 async function deleteInspection(key){
   if(!confirm('حذف هذا الفحص نهائيًا؟')) return;
+  if(!checkDeletePin()) return;
   try{
     await deleteDoc(doc(db, 'inspections', key));
     openHistory();
