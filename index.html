@@ -633,6 +633,16 @@ async function addCategoryToTemplate(catName){
   if(!tpl.find(c => c.name === catName)) tpl.push({ name: catName, items: [] });
   await saveTemplate(tpl);
 }
+async function removeItemFromTemplate(catName, itemName){
+  const tpl = await loadTemplate();
+  const cat = tpl.find(c => c.name === catName);
+  if(cat) cat.items = cat.items.filter(n => n !== itemName);
+  await saveTemplate(tpl);
+}
+async function removeCategoryFromTemplate(catName){
+  const tpl = await loadTemplate();
+  await saveTemplate(tpl.filter(c => c.name !== catName));
+}
 
 function freshItem(name){ return {id:idCounter++, name, status:null, comment:""}; }
 async function loadDefaults(){
@@ -752,13 +762,17 @@ async function checkDeletePin(message){
 async function deleteItem(catId, itemId){
   if(!(await checkDeletePin('حذف هذا العنصر؟ اكتب الرمز السري للتأكيد:'))) return;
   const cat = state.cats.find(c=>c.id===catId);
+  const item = cat.items.find(i=>i.id===itemId);
   cat.items = cat.items.filter(i=>i.id!==itemId);
   render();
+  if(item) await removeItemFromTemplate(cat.name, item.name);
 }
 async function deleteCategory(catId){
   if(!(await checkDeletePin('حذف هذا القسم بالكامل؟ اكتب الرمز السري للتأكيد:'))) return;
+  const cat = state.cats.find(c=>c.id===catId);
   state.cats = state.cats.filter(c=>c.id!==catId);
   render();
+  if(cat) await removeCategoryFromTemplate(cat.name);
 }
 async function addItem(catId){
   const input = document.getElementById('add-input-'+catId);
