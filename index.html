@@ -44,6 +44,18 @@
   }
   .config-banner.show{display:block;}
 
+  .view-banner{
+    max-width:720px;margin:0 auto 16px;
+    background:var(--blue-bg);
+    border:1.5px solid var(--blue);
+    border-radius:10px;
+    padding:12px 16px;
+    font-size:13.5px;
+    line-height:1.7;
+    display:none;
+  }
+  .view-banner.show{display:block;}
+
   /* Ticket header */
   .ticket{
     background:linear-gradient(150deg,#1a2230,#161b24 70%);
@@ -554,6 +566,10 @@
   ⚠️ التطبيق مش متصل بقاعدة البيانات. تأكد إنك حطيت بيانات <code>firebaseConfig</code> الصحيحة بالكود، وإنه Firestore مفعّل، وإن الـ Rules منشورة (Publish). راجع رسالة الخطأ بالـ Console (F12) للتفاصيل.
 </div>
 
+<div class="view-banner" id="viewOnlyBanner">
+  👁️ عرض فقط — هذا الفحص لفاحص ثاني، بتقدر تشوفه بس ما بتقدر تعدل عليه. التعديل متاح بس للفاحص اللي عمل الفحص أو للمدير.
+</div>
+
 <div class="wrap" id="appWrap">
 
   <div class="ticket">
@@ -587,7 +603,7 @@
 
   <div class="categories" id="categories"></div>
 
-  <div class="add-cat">
+  <div class="add-cat" id="addCatWrap">
     <input id="newCatName" type="text" placeholder="اسم قسم جديد... مثال: الحديقة">
     <button onclick="addCategory()">إضافة قسم</button>
   </div>
@@ -699,6 +715,7 @@ let currentInspectionId = null;
 let historyCache = [];
 let currentUser = null;
 let teamData = null;
+let viewOnlyMode = false;
 
 const DEFAULT_TEAM = {
   admin: { name: "طارق صافي", pin: "Ts512512" },
@@ -834,10 +851,27 @@ function enterApp(){
   inspectorInput.readOnly = true;
   document.getElementById('adminPanelBtn').style.display = currentUser.role === 'admin' ? 'inline-flex' : 'none';
   document.getElementById('logoutBtn').style.display = 'inline-flex';
+  applyViewOnlyMode(false);
+}
+
+function applyViewOnlyMode(isViewOnly){
+  viewOnlyMode = isViewOnly;
+  document.getElementById('viewOnlyBanner').classList.toggle('show', isViewOnly);
+  document.getElementById('siteId').readOnly = isViewOnly;
+  document.getElementById('finalNote').readOnly = isViewOnly;
+  document.getElementById('addCatWrap').style.display = isViewOnly ? 'none' : '';
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.style.display = isViewOnly ? 'none' : '';
+  if(!isViewOnly) checkConnection();
+  render();
 }
 
 async function logout(){
   currentUser = null;
+  viewOnlyMode = false;
+  document.getElementById('viewOnlyBanner').classList.remove('show');
+  document.getElementById('addCatWrap').style.display = '';
+  document.getElementById('saveBtn').style.display = '';
   try{ sessionStorage.removeItem('currentUser'); }catch(e){}
   document.getElementById('siteId').value = '';
   document.getElementById('finalNote').value = '';
@@ -925,7 +959,7 @@ function render(){
         <h2>${escapeHtml(cat.name)}</h2>
         <div style="display:flex; align-items:center; gap:10px;">
           <span class="cat-count">${goodCount}✓ / ${badCount}✕ من ${cat.items.length}</span>
-          <button class="del-cat" data-act="delcat" data-cat="${cat.id}">حذف القسم</button>
+          ${viewOnlyMode ? '' : `<button class="del-cat" data-act="delcat" data-cat="${cat.id}">حذف القسم</button>`}
         </div>
       </div>
     `;
@@ -937,25 +971,28 @@ function render(){
         <span class="status-tag ${item.status==='good'?'good':item.status==='bad'?'bad':'none'}">
           ${item.status==='good'?'جيد':item.status==='bad'?'بحاجة لتصليح':'لم يُفحص'}
         </span>
+        ${viewOnlyMode ? '' : `
         <div class="status-btns">
           <button class="status-btn good ${item.status==='good'?'active':''}" data-act="status" data-cat="${cat.id}" data-item="${item.id}" data-val="good">جيد</button>
           <button class="status-btn bad ${item.status==='bad'?'active':''}" data-act="status" data-cat="${cat.id}" data-item="${item.id}" data-val="bad">بحاجة لتصليح</button>
         </div>
-        <button class="del-item" title="حذف" data-act="delitem" data-cat="${cat.id}" data-item="${item.id}">✕</button>
+        <button class="del-item" title="حذف" data-act="delitem" data-cat="${cat.id}" data-item="${item.id}">✕</button>`}
         ${item.status==='bad' ? `
           <div class="comment-box">
-            <textarea placeholder="اكتب وش المشكلة بالضبط..." data-act="comment" data-cat="${cat.id}" data-item="${item.id}">${escapeHtml(item.comment)}</textarea>
+            <textarea placeholder="اكتب وش المشكلة بالضبط..." data-act="comment" data-cat="${cat.id}" data-item="${item.id}" ${viewOnlyMode?'readonly':''}>${escapeHtml(item.comment)}</textarea>
           </div>` : ''}
       `;
       catEl.appendChild(row);
     });
-    const addRow = document.createElement('div');
-    addRow.className='add-item-row';
-    addRow.innerHTML = `
-      <input type="text" placeholder="إضافة عنصر جديد لهذا القسم..." id="add-input-${cat.id}">
-      <button data-act="additem" data-cat="${cat.id}">إضافة</button>
-    `;
-    catEl.appendChild(addRow);
+    if(!viewOnlyMode){
+      const addRow = document.createElement('div');
+      addRow.className='add-item-row';
+      addRow.innerHTML = `
+        <input type="text" placeholder="إضافة عنصر جديد لهذا القسم..." id="add-input-${cat.id}">
+        <button data-act="additem" data-cat="${cat.id}">إضافة</button>
+      `;
+      catEl.appendChild(addRow);
+    }
     root.appendChild(catEl);
   });
   renderSummary();
@@ -975,6 +1012,7 @@ function renderSummary(){
 }
 
 function setStatus(catId, itemId, status){
+  if(viewOnlyMode) return;
   const cat = state.cats.find(c=>c.id===catId);
   const item = cat.items.find(i=>i.id===itemId);
   item.status = item.status===status ? null : status;
@@ -982,11 +1020,13 @@ function setStatus(catId, itemId, status){
   render();
 }
 function setComment(catId, itemId, val){
+  if(viewOnlyMode) return;
   const cat = state.cats.find(c=>c.id===catId);
   const item = cat.items.find(i=>i.id===itemId);
   item.comment = val;
 }
 async function deleteItem(catId, itemId){
+  if(viewOnlyMode) return;
   if(!(await requireAdmin('حذف هذا العنصر؟'))) return;
   const cat = state.cats.find(c=>c.id===catId);
   const item = cat.items.find(i=>i.id===itemId);
@@ -995,6 +1035,7 @@ async function deleteItem(catId, itemId){
   if(item) await removeItemFromTemplate(cat.name, item.name);
 }
 async function deleteCategory(catId){
+  if(viewOnlyMode) return;
   if(!(await requireAdmin('حذف هذا القسم بالكامل؟'))) return;
   const cat = state.cats.find(c=>c.id===catId);
   state.cats = state.cats.filter(c=>c.id!==catId);
@@ -1002,6 +1043,7 @@ async function deleteCategory(catId){
   if(cat) await removeCategoryFromTemplate(cat.name);
 }
 async function addItem(catId){
+  if(viewOnlyMode) return;
   const input = document.getElementById('add-input-'+catId);
   const name = input.value.trim();
   if(!name) return;
@@ -1011,6 +1053,7 @@ async function addItem(catId){
   await addItemToTemplate(cat.name, name);
 }
 async function addCategory(){
+  if(viewOnlyMode) return;
   const input = document.getElementById('newCatName');
   const name = input.value.trim();
   if(!name) return;
@@ -1033,7 +1076,7 @@ async function resetAll(){
   await loadDefaults();
   currentInspectionId = null;
   document.getElementById('saveStatus').textContent = '';
-  render();
+  applyViewOnlyMode(false);
 }
 
 /* ---------- Firestore persistence ---------- */
@@ -1051,6 +1094,10 @@ function buildRecord(){
 
 async function saveInspection(){
   const statusEl = document.getElementById('saveStatus');
+  if(viewOnlyMode){
+    statusEl.textContent = 'هذا الفحص لفاحص ثاني، ما بتقدر تعدله أو تحفظه';
+    return;
+  }
   if(!firebaseReady || !db){
     statusEl.textContent = 'مش متصل بقاعدة البيانات، شيك على الإعدادات';
     return;
@@ -1143,9 +1190,12 @@ function loadInspectionFromCache(key){
   state.cats = rec.cats || [];
   idCounter = (rec.idCounter || 0) + 1000;
   currentInspectionId = key;
-  document.getElementById('saveStatus').textContent = 'تم تحميل الفحص المحفوظ بتاريخ ' + (rec.datetime||'').replace('T',' ');
+  const isOwner = !!currentUser && (currentUser.role === 'admin' || currentUser.name === rec.inspector);
+  applyViewOnlyMode(!isOwner);
+  document.getElementById('saveStatus').textContent = isOwner
+    ? 'تم تحميل الفحص المحفوظ بتاريخ ' + (rec.datetime||'').replace('T',' ')
+    : 'عرض فقط — بتاريخ ' + (rec.datetime||'').replace('T',' ');
   closeHistory();
-  render();
 }
 async function deleteInspection(key){
   if(!(await requireAdmin('حذف هذا الفحص نهائيًا؟'))) return;
