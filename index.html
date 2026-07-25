@@ -30,6 +30,7 @@
     padding:24px 14px 60px;
   }
   .wrap{max-width:720px;margin:0 auto;}
+  #appWrap{display:none;}
 
   .config-banner{
     max-width:720px;margin:0 auto 16px;
@@ -127,6 +128,7 @@
 
   .header-actions{
     display:flex;
+    flex-wrap:wrap;
     gap:8px;
     margin-top:4px;
   }
@@ -135,6 +137,7 @@
     font-size:12.5px;
     flex:1 1 auto;
   }
+  .meta-field input[readonly]{opacity:.72; cursor:not-allowed;}
 
   .perf{
     height:14px;
@@ -454,6 +457,86 @@
     .cat{break-inside:avoid;}
   }
   .status-tag{display:none;}
+
+  .login-overlay{
+    display:none;
+    position:fixed; inset:0;
+    background:var(--bg);
+    z-index:100;
+    align-items:center;
+    justify-content:center;
+    padding:20px 14px;
+  }
+  .login-overlay.open{display:flex;}
+  .login-card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:14px;
+    max-width:360px;
+    width:100%;
+    padding:24px 22px 26px;
+  }
+  .login-eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:.12em;
+    color:var(--orange);
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .login-card h2{
+    font-family:'Barlow Condensed', sans-serif;
+    font-size:26px;
+    margin:0 0 18px;
+    color:#fff;
+  }
+  .login-card label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:#7d8ba0;
+    letter-spacing:.05em;
+    margin:12px 0 5px;
+  }
+  .login-card select, .login-card input{
+    width:100%;
+    background:rgba(255,255,255,.05);
+    border:1px solid var(--line);
+    border-radius:7px;
+    padding:10px 12px;
+    color:#fff;
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    font-size:14px;
+  }
+  .login-card select:focus, .login-card input:focus{outline:2px solid var(--blue); outline-offset:1px;}
+  .login-error{
+    color:var(--orange);
+    font-size:12.5px;
+    margin-top:12px;
+    min-height:16px;
+    text-align:center;
+  }
+
+  .admin-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:8px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .admin-row:last-child{border-bottom:none;}
+  .admin-row-name{font-size:13.5px; font-weight:500; flex:1 1 auto;}
+  .admin-row-pin{
+    width:130px;
+    background:var(--surface-alt);
+    border:1px solid var(--line);
+    border-radius:7px;
+    padding:7px 9px;
+    color:var(--text);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+  }
   .app-footer{
     text-align:center;
     color:#4f5866;
@@ -471,7 +554,7 @@
   ⚠️ التطبيق مش متصل بقاعدة البيانات. تأكد إنك حطيت بيانات <code>firebaseConfig</code> الصحيحة بالكود، وإنه Firestore مفعّل، وإن الـ Rules منشورة (Publish). راجع رسالة الخطأ بالـ Console (F12) للتفاصيل.
 </div>
 
-<div class="wrap">
+<div class="wrap" id="appWrap">
 
   <div class="ticket">
     <div class="eyebrow">
@@ -486,7 +569,7 @@
       </div>
       <div class="meta-field">
         <label>اسم الفاحص</label>
-        <input id="inspector" type="text" placeholder="اسم الشاب">
+        <input id="inspector" type="text" placeholder="اسم الشاب" readonly>
       </div>
       <div class="meta-field" style="grid-column:1 / -1;">
         <label>التاريخ والوقت</label>
@@ -495,6 +578,8 @@
       <div class="header-actions" style="grid-column:1 / -1;">
         <button class="btn btn-ghost" onclick="openHistory()">📂 الفحوصات السابقة</button>
         <button class="btn btn-ghost" onclick="resetAll()">فحص جديد</button>
+        <button class="btn btn-ghost" id="adminPanelBtn" style="display:none;" onclick="openAdminPanel()">⚙️ إدارة رموز الفريق</button>
+        <button class="btn btn-ghost" id="logoutBtn" style="display:none;" onclick="logout()">🚪 خروج</button>
       </div>
     </div>
   </div>
@@ -532,18 +617,44 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="pinOverlay">
+<div class="modal-overlay" id="confirmOverlay">
   <div class="modal" style="max-width:340px;">
     <div class="modal-head">
-      <h3>تأكيد الحذف</h3>
-      <button class="modal-close" onclick="closePinModal(false)">✕</button>
+      <h3>تأكيد</h3>
+      <button class="modal-close" onclick="closeConfirmModal(false)">✕</button>
     </div>
-    <div id="pinMessage" style="font-size:13.5px; color:var(--muted); margin-bottom:10px;"></div>
-    <input id="pinInput" class="hist-search" type="password" placeholder="اكتب الرمز السري" inputmode="text" autocomplete="off">
-    <div class="actions" style="margin-top:4px;">
-      <button class="btn btn-primary" onclick="closePinModal(true)">تأكيد الحذف</button>
-      <button class="btn btn-ghost" onclick="closePinModal(false)">إلغاء</button>
+    <div id="confirmMessage" style="font-size:13.5px; color:var(--text); line-height:1.7; margin-bottom:14px;"></div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="closeConfirmModal(true)">تأكيد</button>
+      <button class="btn btn-ghost" onclick="closeConfirmModal(false)">إلغاء</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="adminOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>إدارة رموز الفريق</h3>
+      <button class="modal-close" onclick="closeAdminPanel()">✕</button>
+    </div>
+    <div id="adminTeamList"></div>
+    <div class="actions" style="margin-top:6px;">
+      <button class="btn btn-save" onclick="saveTeamCodes()">حفظ التعديلات</button>
+    </div>
+    <div class="save-status" id="adminSaveStatus"></div>
+  </div>
+</div>
+
+<div class="login-overlay open" id="loginOverlay">
+  <div class="login-card">
+    <div class="login-eyebrow">تقرير فحص ميداني — قسم الصيانة</div>
+    <h2>تسجيل الدخول</h2>
+    <label>الاسم</label>
+    <select id="loginName"></select>
+    <label>رمز الدخول</label>
+    <input id="loginPin" type="password" placeholder="اكتب رمزك" autocomplete="off">
+    <button class="btn btn-save" style="width:100%; margin-top:14px;" onclick="attemptLogin()">دخول</button>
+    <div class="login-error" id="loginError"></div>
   </div>
 </div>
 
@@ -589,6 +700,19 @@ let state = { cats: [] };
 let idCounter = 1;
 let currentInspectionId = null;
 let historyCache = [];
+let currentUser = null;
+let teamData = null;
+
+const DEFAULT_TEAM = {
+  admin: { name: "طارق صافي", pin: "Ts512512" },
+  inspectors: [
+    { name: "تيسير ابو عميرة", pin: "1001" },
+    { name: "عماد سعد", pin: "1002" },
+    { name: "امين قاسم", pin: "1003" },
+    { name: "معن نبهان", pin: "1004" },
+    { name: "محمد عويضة", pin: "1005" }
+  ]
+};
 
 const TEMPLATE_KEY = 'maintenanceTemplate';
 const TEMPLATE_DOC = () => doc(db, 'config', 'template');
@@ -653,6 +777,152 @@ function escapeHtml(s){
   const d = document.createElement('div');
   d.textContent = s || '';
   return d.innerHTML;
+}
+
+/* ---------- Team / login / admin ---------- */
+
+async function loadTeam(){
+  if(firebaseReady && db){
+    try{
+      const snap = await getDoc(doc(db, 'config', 'team'));
+      if(snap.exists() && snap.data().admin){
+        return snap.data();
+      }
+      await setDoc(doc(db, 'config', 'team'), DEFAULT_TEAM);
+      return DEFAULT_TEAM;
+    }catch(e){ console.error('تعذر تحميل بيانات الفريق:', e); }
+  }
+  return DEFAULT_TEAM;
+}
+async function saveTeam(team){
+  teamData = team;
+  if(firebaseReady && db){
+    try{ await setDoc(doc(db, 'config', 'team'), team); }
+    catch(e){ console.error('تعذر حفظ بيانات الفريق:', e); }
+  }
+}
+
+function populateLoginSelect(){
+  const sel = document.getElementById('loginName');
+  sel.innerHTML = '';
+  const optAdmin = document.createElement('option');
+  optAdmin.value = teamData.admin.name;
+  optAdmin.textContent = teamData.admin.name + ' (مدير)';
+  sel.appendChild(optAdmin);
+  teamData.inspectors.forEach(p=>{
+    const opt = document.createElement('option');
+    opt.value = p.name;
+    opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+}
+
+function attemptLogin(){
+  const name = document.getElementById('loginName').value;
+  const pin = document.getElementById('loginPin').value.trim();
+  const errEl = document.getElementById('loginError');
+  let role = null;
+  if(teamData.admin.name === name && teamData.admin.pin === pin){
+    role = 'admin';
+  }else{
+    const insp = teamData.inspectors.find(p => p.name === name && p.pin === pin);
+    if(insp) role = 'inspector';
+  }
+  if(!role){
+    errEl.textContent = 'الاسم أو الرمز غلط، جرب مرة ثانية';
+    return;
+  }
+  errEl.textContent = '';
+  currentUser = { name, role };
+  try{ sessionStorage.setItem('currentUser', JSON.stringify(currentUser)); }catch(e){}
+  document.getElementById('loginPin').value = '';
+  enterApp();
+}
+
+function enterApp(){
+  document.getElementById('loginOverlay').classList.remove('open');
+  document.getElementById('appWrap').style.display = 'block';
+  const inspectorInput = document.getElementById('inspector');
+  inspectorInput.value = currentUser.name;
+  inspectorInput.readOnly = true;
+  document.getElementById('adminPanelBtn').style.display = currentUser.role === 'admin' ? 'inline-flex' : 'none';
+  document.getElementById('logoutBtn').style.display = 'inline-flex';
+}
+
+async function logout(){
+  currentUser = null;
+  try{ sessionStorage.removeItem('currentUser'); }catch(e){}
+  document.getElementById('siteId').value = '';
+  document.getElementById('finalNote').value = '';
+  const inspectorInput = document.getElementById('inspector');
+  inspectorInput.value = '';
+  inspectorInput.readOnly = false;
+  currentInspectionId = null;
+  document.getElementById('saveStatus').textContent = '';
+  await loadDefaults();
+  render();
+  document.getElementById('appWrap').style.display = 'none';
+  document.getElementById('adminPanelBtn').style.display = 'none';
+  document.getElementById('logoutBtn').style.display = 'none';
+  document.getElementById('loginPin').value = '';
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('loginOverlay').classList.add('open');
+}
+
+function openAdminPanel(){
+  if(!currentUser || currentUser.role !== 'admin') return;
+  const listEl = document.getElementById('adminTeamList');
+  listEl.innerHTML = '';
+  const addRow = (label, idx, currentPin, isAdmin)=>{
+    const row = document.createElement('div');
+    row.className = 'admin-row';
+    row.innerHTML = `
+      <span class="admin-row-name">${escapeHtml(label)}</span>
+      <input type="text" class="admin-row-pin" data-admin="${isAdmin?1:0}" data-idx="${idx}" value="${escapeHtml(currentPin)}">
+    `;
+    listEl.appendChild(row);
+  };
+  addRow(teamData.admin.name + ' (مدير)', -1, teamData.admin.pin, true);
+  teamData.inspectors.forEach((p, i) => addRow(p.name, i, p.pin, false));
+  document.getElementById('adminSaveStatus').textContent = '';
+  document.getElementById('adminOverlay').classList.add('open');
+}
+function closeAdminPanel(){
+  document.getElementById('adminOverlay').classList.remove('open');
+}
+async function saveTeamCodes(){
+  const rows = document.querySelectorAll('#adminTeamList .admin-row-pin');
+  const newTeam = JSON.parse(JSON.stringify(teamData));
+  rows.forEach(inp=>{
+    const val = inp.value.trim();
+    if(!val) return;
+    if(inp.dataset.admin === '1'){ newTeam.admin.pin = val; }
+    else{ newTeam.inspectors[Number(inp.dataset.idx)].pin = val; }
+  });
+  await saveTeam(newTeam);
+  populateLoginSelect();
+  document.getElementById('adminSaveStatus').textContent = 'تم حفظ الرموز الجديدة ✓';
+}
+
+/* ---------- Generic confirm modal (replaces unreliable native confirm/prompt) ---------- */
+let confirmResolve = null;
+function askConfirm(message){
+  return new Promise(resolve=>{
+    confirmResolve = resolve;
+    document.getElementById('confirmMessage').textContent = message;
+    document.getElementById('confirmOverlay').classList.add('open');
+  });
+}
+function closeConfirmModal(result){
+  document.getElementById('confirmOverlay').classList.remove('open');
+  if(confirmResolve){ confirmResolve(!!result); confirmResolve = null; }
+}
+async function requireAdmin(message){
+  if(!currentUser || currentUser.role !== 'admin'){
+    alert('بس المدير طارق يقدر يعمل هاد الإجراء.');
+    return false;
+  }
+  return await askConfirm(message);
 }
 
 function render(){
@@ -729,38 +999,8 @@ function setComment(catId, itemId, val){
   const item = cat.items.find(i=>i.id===itemId);
   item.comment = val;
 }
-const DELETE_PIN = "Ts512512";
-let pinResolve = null;
-function askDeletePin(message){
-  return new Promise(resolve=>{
-    pinResolve = resolve;
-    document.getElementById('pinMessage').textContent = message || 'اكتب الرمز السري للتأكيد:';
-    const input = document.getElementById('pinInput');
-    input.value = '';
-    document.getElementById('pinOverlay').classList.add('open');
-    setTimeout(()=> input.focus(), 60);
-  });
-}
-function closePinModal(confirmed){
-  const input = document.getElementById('pinInput');
-  const val = input.value;
-  document.getElementById('pinOverlay').classList.remove('open');
-  if(pinResolve){
-    pinResolve(confirmed ? val : null);
-    pinResolve = null;
-  }
-}
-async function checkDeletePin(message){
-  const entered = await askDeletePin(message);
-  if(entered === null) return false;
-  if(entered !== DELETE_PIN){
-    alert('رمز غلط، ما تم الحذف.');
-    return false;
-  }
-  return true;
-}
 async function deleteItem(catId, itemId){
-  if(!(await checkDeletePin('حذف هذا العنصر؟ اكتب الرمز السري للتأكيد:'))) return;
+  if(!(await requireAdmin('حذف هذا العنصر؟'))) return;
   const cat = state.cats.find(c=>c.id===catId);
   const item = cat.items.find(i=>i.id===itemId);
   cat.items = cat.items.filter(i=>i.id!==itemId);
@@ -768,7 +1008,7 @@ async function deleteItem(catId, itemId){
   if(item) await removeItemFromTemplate(cat.name, item.name);
 }
 async function deleteCategory(catId){
-  if(!(await checkDeletePin('حذف هذا القسم بالكامل؟ اكتب الرمز السري للتأكيد:'))) return;
+  if(!(await requireAdmin('حذف هذا القسم بالكامل؟'))) return;
   const cat = state.cats.find(c=>c.id===catId);
   state.cats = state.cats.filter(c=>c.id!==catId);
   render();
@@ -798,9 +1038,9 @@ function setNowDatetime(){
   document.getElementById('datetime').value = now.toISOString().slice(0,16);
 }
 async function resetAll(){
-  if(!confirm('بدك تبدأ فحص جديد؟ رح تنمسح كل البيانات الحالية إذا ما كنت حفظتها.')) return;
+  if(!(await askConfirm('بدك تبدأ فحص جديد؟ رح تنمسح كل البيانات الحالية إذا ما كنت حفظتها.'))) return;
   document.getElementById('siteId').value='';
-  document.getElementById('inspector').value='';
+  document.getElementById('inspector').value = currentUser ? currentUser.name : '';
   document.getElementById('finalNote').value='';
   setNowDatetime();
   await loadDefaults();
@@ -921,7 +1161,7 @@ function loadInspectionFromCache(key){
   render();
 }
 async function deleteInspection(key){
-  if(!(await checkDeletePin('حذف هذا الفحص نهائيًا؟ اكتب الرمز السري للتأكيد:'))) return;
+  if(!(await requireAdmin('حذف هذا الفحص نهائيًا؟'))) return;
   try{
     await deleteDoc(doc(db, 'inspections', key));
     openHistory();
@@ -945,8 +1185,8 @@ document.getElementById('categories').addEventListener('change', (e)=>{
   if(!t) return;
   setComment(Number(t.dataset.cat), Number(t.dataset.item), t.value);
 });
-document.getElementById('pinInput').addEventListener('keydown', (e)=>{
-  if(e.key === 'Enter'){ e.preventDefault(); closePinModal(true); }
+document.getElementById('loginPin').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); attemptLogin(); }
 });
 document.getElementById('histSearch').addEventListener('input', (e)=>{
   renderHistList(e.target.value);
@@ -964,7 +1204,12 @@ window.saveInspection = saveInspection;
 window.openHistory = openHistory;
 window.closeHistory = closeHistory;
 window.resetAll = resetAll;
-window.closePinModal = closePinModal;
+window.closeConfirmModal = closeConfirmModal;
+window.attemptLogin = attemptLogin;
+window.logout = logout;
+window.openAdminPanel = openAdminPanel;
+window.closeAdminPanel = closeAdminPanel;
+window.saveTeamCodes = saveTeamCodes;
 
 /* ---------- Connection check ---------- */
 async function checkConnection(){
@@ -992,10 +1237,25 @@ async function checkConnection(){
 }
 
 (async function init(){
+  teamData = await loadTeam();
+  populateLoginSelect();
   await loadDefaults();
   render();
   setNowDatetime();
   checkConnection();
+
+  let restored = null;
+  try{ restored = JSON.parse(sessionStorage.getItem('currentUser') || 'null'); }catch(e){}
+  const stillValid = restored && (
+    (restored.role === 'admin' && teamData.admin.name === restored.name) ||
+    (restored.role === 'inspector' && teamData.inspectors.some(p => p.name === restored.name))
+  );
+  if(stillValid){
+    currentUser = restored;
+    enterApp();
+  }else{
+    document.getElementById('loginOverlay').classList.add('open');
+  }
 })();
 </script>
 </body>
