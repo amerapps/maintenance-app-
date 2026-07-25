@@ -532,6 +532,21 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="pinOverlay">
+  <div class="modal" style="max-width:340px;">
+    <div class="modal-head">
+      <h3>تأكيد الحذف</h3>
+      <button class="modal-close" onclick="closePinModal(false)">✕</button>
+    </div>
+    <div id="pinMessage" style="font-size:13.5px; color:var(--muted); margin-bottom:10px;"></div>
+    <input id="pinInput" class="hist-search" type="password" placeholder="اكتب الرمز السري" inputmode="text" autocomplete="off">
+    <div class="actions" style="margin-top:4px;">
+      <button class="btn btn-primary" onclick="closePinModal(true)">تأكيد الحذف</button>
+      <button class="btn btn-ghost" onclick="closePinModal(false)">إلغاء</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
@@ -705,8 +720,28 @@ function setComment(catId, itemId, val){
   item.comment = val;
 }
 const DELETE_PIN = "Ts512512";
-function checkDeletePin(){
-  const entered = prompt('اكتب الرمز السري للحذف:');
+let pinResolve = null;
+function askDeletePin(message){
+  return new Promise(resolve=>{
+    pinResolve = resolve;
+    document.getElementById('pinMessage').textContent = message || 'اكتب الرمز السري للتأكيد:';
+    const input = document.getElementById('pinInput');
+    input.value = '';
+    document.getElementById('pinOverlay').classList.add('open');
+    setTimeout(()=> input.focus(), 60);
+  });
+}
+function closePinModal(confirmed){
+  const input = document.getElementById('pinInput');
+  const val = input.value;
+  document.getElementById('pinOverlay').classList.remove('open');
+  if(pinResolve){
+    pinResolve(confirmed ? val : null);
+    pinResolve = null;
+  }
+}
+async function checkDeletePin(message){
+  const entered = await askDeletePin(message);
   if(entered === null) return false;
   if(entered !== DELETE_PIN){
     alert('رمز غلط، ما تم الحذف.');
@@ -714,14 +749,14 @@ function checkDeletePin(){
   }
   return true;
 }
-function deleteItem(catId, itemId){
-  if(!checkDeletePin()) return;
+async function deleteItem(catId, itemId){
+  if(!(await checkDeletePin('حذف هذا العنصر؟ اكتب الرمز السري للتأكيد:'))) return;
   const cat = state.cats.find(c=>c.id===catId);
   cat.items = cat.items.filter(i=>i.id!==itemId);
   render();
 }
-function deleteCategory(catId){
-  if(!checkDeletePin()) return;
+async function deleteCategory(catId){
+  if(!(await checkDeletePin('حذف هذا القسم بالكامل؟ اكتب الرمز السري للتأكيد:'))) return;
   state.cats = state.cats.filter(c=>c.id!==catId);
   render();
 }
@@ -872,8 +907,7 @@ function loadInspectionFromCache(key){
   render();
 }
 async function deleteInspection(key){
-  if(!confirm('حذف هذا الفحص نهائيًا؟')) return;
-  if(!checkDeletePin()) return;
+  if(!(await checkDeletePin('حذف هذا الفحص نهائيًا؟ اكتب الرمز السري للتأكيد:'))) return;
   try{
     await deleteDoc(doc(db, 'inspections', key));
     openHistory();
@@ -897,6 +931,9 @@ document.getElementById('categories').addEventListener('change', (e)=>{
   if(!t) return;
   setComment(Number(t.dataset.cat), Number(t.dataset.item), t.value);
 });
+document.getElementById('pinInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); closePinModal(true); }
+});
 document.getElementById('histSearch').addEventListener('input', (e)=>{
   renderHistList(e.target.value);
 });
@@ -913,6 +950,7 @@ window.saveInspection = saveInspection;
 window.openHistory = openHistory;
 window.closeHistory = closeHistory;
 window.resetAll = resetAll;
+window.closePinModal = closePinModal;
 
 /* ---------- Connection check ---------- */
 async function checkConnection(){
