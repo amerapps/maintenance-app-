@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>سجل فحص الموقع</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12151b;
+    --surface:#1b1f27;
+    --surface-alt:#20242e;
+    --line:#2c3240;
+    --text:#eef1f5;
+    --muted:#8c96a5;
+    --blue:#4f8fdb;
+    --blue-bg:rgba(79,143,219,0.14);
+    --blue-dark:#2f6dc4;
+    --orange:#e2793a;
+    --orange-bg:rgba(226,121,58,0.15);
+    --orange-dark:#c5602a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    color:var(--text);
+    padding:24px 14px 60px;
+  }
+  .wrap{max-width:720px;margin:0 auto;}
+
+  .config-banner{
+    max-width:720px;margin:0 auto 16px;
+    background:var(--orange-bg);
+    border:1.5px solid var(--orange);
+    border-radius:10px;
+    padding:14px 16px;
+    font-size:13.5px;
+    line-height:1.9;
+    display:none;
+  }
+  .config-banner.show{display:block;}
+
+  /* Ticket header */
+  .ticket{
+    background:linear-gradient(150deg,#1a2230,#161b24 70%);
+    color:#fff;
+    border-radius:12px 12px 0 0;
+    padding:20px 22px 18px;
+    position:relative;
+    overflow:hidden;
+    border:1px solid var(--line);
+    border-bottom:none;
+  }
+  .ticket::before{
+    content:"";
+    position:absolute;
+    top:-40px; left:-40px;
+    width:160px; height:160px;
+    background:radial-gradient(circle, rgba(226,121,58,.18), transparent 70%);
+  }
+  .ticket::after{
+    content:"";
+    position:absolute;
+    bottom:-60px; right:-30px;
+    width:180px; height:180px;
+    background:radial-gradient(circle, rgba(79,143,219,.14), transparent 70%);
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    color:var(--orange);
+    text-transform:uppercase;
+    position:relative;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .conn-dot{
+    display:inline-flex; align-items:center; gap:5px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px;
+    letter-spacing:.04em;
+    color:var(--muted);
+  }
+  .conn-dot span.dot{width:7px;height:7px;border-radius:50%;background:#5c6879;}
+  .conn-dot.ok span.dot{background:#4fdb8f; box-shadow:0 0 6px #4fdb8f;}
+  .conn-dot.err span.dot{background:var(--orange); box-shadow:0 0 6px var(--orange);}
+  .ticket h1{
+    font-family:'Barlow Condensed', sans-serif;
+    font-weight:700;
+    font-size:30px;
+    margin:2px 0 16px;
+    letter-spacing:.01em;
+    position:relative;
+  }
+  .meta-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px 14px;
+    position:relative;
+  }
+  .meta-field label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:#7d8ba0;
+    letter-spacing:.06em;
+    margin-bottom:4px;
+  }
+  .meta-field input{
+    width:100%;
+    background:rgba(255,255,255,.05);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:8px 10px;
+    color:#fff;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13.5px;
+  }
+  .meta-field input::placeholder{color:#5c6879;}
+  .meta-field input:focus{outline:2px solid var(--blue); outline-offset:1px;}
+
+  .perf{
+    height:14px;
+    background:#161b24;
+    position:relative;
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+  }
+  .perf::after{
+    content:"";
+    position:absolute;
+    left:0;right:0;bottom:0;
+    height:14px;
+    background-image:radial-gradient(circle at 10px 0, var(--bg) 7px, transparent 7.5px);
+    background-size:20px 14px;
+    background-repeat:repeat-x;
+  }
+
+  .categories{background:var(--surface); padding:6px 16px 10px; border-left:1px solid var(--line); border-right:1px solid var(--line);}
+  .cat{border-bottom:1px solid var(--line); padding:14px 0;}
+  .cat:last-child{border-bottom:none;}
+  .cat-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:8px;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  .cat-head h2{
+    font-family:'Barlow Condensed', sans-serif;
+    font-size:19px;
+    font-weight:700;
+    color:#fff;
+    margin:0;
+  }
+  .cat-count{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--muted);
+  }
+  .del-cat{
+    background:none;border:none;color:var(--orange);font-size:12px;cursor:pointer;
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+  }
+
+  .item{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+    padding:9px 8px;
+    border-radius:8px;
+  }
+  .item:nth-child(odd){background:var(--surface-alt);}
+  .item-name{
+    flex:1 1 140px;
+    font-size:14.5px;
+    font-weight:500;
+    min-width:120px;
+    color:var(--text);
+  }
+  .status-btns{display:flex; gap:6px;}
+  .status-btn{
+    border:1.5px solid var(--line);
+    background:transparent;
+    color:var(--muted);
+    border-radius:7px;
+    padding:6px 12px;
+    font-size:12.5px;
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .status-btn.good.active{background:var(--blue-bg); border-color:var(--blue); color:var(--blue); font-weight:700;}
+  .status-btn.bad.active{background:var(--orange-bg); border-color:var(--orange); color:var(--orange); font-weight:700;}
+  .del-item{
+    background:none;border:none;color:#5c6879;font-size:16px;cursor:pointer;line-height:1;padding:0 2px;
+  }
+  .comment-box{
+    flex-basis:100%;
+    margin-top:4px;
+  }
+  .comment-box textarea{
+    width:100%;
+    border:1.5px solid var(--orange);
+    border-radius:7px;
+    padding:8px 10px;
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    font-size:13px;
+    resize:vertical;
+    min-height:44px;
+    background:var(--orange-bg);
+    color:var(--text);
+  }
+  .comment-box textarea::placeholder{color:#a68164;}
+
+  .add-item-row{
+    display:flex;
+    gap:8px;
+    margin-top:8px;
+  }
+  .add-item-row input{
+    flex:1;
+    border:1px dashed var(--line);
+    border-radius:7px;
+    padding:7px 10px;
+    font-size:13px;
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    background:transparent;
+    color:var(--text);
+  }
+  .add-item-row button{
+    border:1px solid var(--blue);
+    background:transparent;
+    color:var(--blue);
+    border-radius:7px;
+    padding:7px 14px;
+    font-size:12.5px;
+    cursor:pointer;
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+  }
+
+  .add-cat{
+    display:flex;
+    gap:8px;
+    padding:14px 16px 18px;
+    background:var(--surface);
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+  }
+  .add-cat input{
+    flex:1;
+    border:1.5px dashed var(--orange);
+    border-radius:8px;
+    padding:9px 12px;
+    font-size:14px;
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    background:transparent;
+    color:var(--text);
+  }
+  .add-cat button{
+    border:none;
+    background:var(--orange);
+    color:#1a1204;
+    border-radius:8px;
+    padding:9px 16px;
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+  }
+
+  .summary{
+    background:var(--surface);
+    border-radius:0 0 12px 12px;
+    padding:16px 20px 20px;
+    border:1px solid var(--line);
+    border-top:1px solid var(--line);
+  }
+  .sum-row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:14px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+  }
+  .sum-pill{
+    padding:4px 10px;
+    border-radius:20px;
+    background:var(--surface-alt);
+    color:var(--muted);
+    border:1px solid var(--line);
+  }
+  .sum-pill.good{color:var(--blue); background:var(--blue-bg); border-color:var(--blue);}
+  .sum-pill.bad{color:var(--orange); background:var(--orange-bg); border-color:var(--orange);}
+
+  .final-note{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:9px 12px;
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    font-size:13px;
+    min-height:50px;
+    margin-bottom:14px;
+    resize:vertical;
+    background:var(--surface-alt);
+    color:var(--text);
+  }
+  .final-note::placeholder{color:var(--muted);}
+
+  .actions{display:flex; gap:10px; flex-wrap:wrap;}
+  .btn{
+    border:none;
+    border-radius:8px;
+    padding:11px 18px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+  }
+  .btn:disabled{opacity:.45; cursor:not-allowed;}
+  .btn-primary{background:var(--orange); color:#1a1204; flex:1 1 140px;}
+  .btn-save{background:var(--blue); color:#0a1622; flex:1 1 140px;}
+  .btn-ghost{background:transparent; color:var(--text); border:1.5px solid var(--line); flex:1 1 100px;}
+
+  .hint{
+    text-align:center;
+    color:#68738a;
+    font-size:11.5px;
+    margin-top:10px;
+  }
+  .save-status{
+    text-align:center;
+    color:var(--blue);
+    font-size:12px;
+    margin-top:8px;
+    min-height:16px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+
+  .modal-overlay{
+    display:none;
+    position:fixed; inset:0;
+    background:rgba(10,12,16,.72);
+    z-index:50;
+    align-items:flex-start;
+    justify-content:center;
+    padding:40px 14px;
+    overflow-y:auto;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:12px;
+    max-width:600px;
+    width:100%;
+    padding:18px 18px 20px;
+  }
+  .modal-head{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:12px;
+  }
+  .modal-head h3{
+    font-family:'Barlow Condensed', sans-serif;
+    font-size:22px;
+    margin:0;
+    color:#fff;
+  }
+  .modal-close{background:none; border:none; color:var(--muted); font-size:22px; cursor:pointer; line-height:1;}
+  .hist-item{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    border:1px solid var(--line);
+    border-radius:9px;
+    padding:11px 13px;
+    margin-bottom:9px;
+    cursor:pointer;
+  }
+  .hist-item:hover{border-color:var(--blue);}
+  .hist-main{display:flex; flex-direction:column; gap:3px;}
+  .hist-site{font-weight:700; font-size:14.5px; color:#fff;}
+  .hist-sub{font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:var(--muted);}
+  .hist-badges{display:flex; gap:6px; font-family:'IBM Plex Mono', monospace; font-size:11px;}
+  .hist-badge{padding:2px 8px; border-radius:12px;}
+  .hist-badge.good{background:var(--blue-bg); color:var(--blue);}
+  .hist-badge.bad{background:var(--orange-bg); color:var(--orange);}
+  .hist-del{background:none; border:none; color:#5c6879; font-size:14px; cursor:pointer; padding:4px;}
+  .hist-empty{color:var(--muted); text-align:center; padding:30px 10px; font-size:13.5px;}
+
+  @media print{
+    body{background:#fff; padding:0; color:#000;}
+    .wrap{max-width:100%;}
+    .config-banner{display:none !important;}
+    .ticket{background:#fff !important; color:#000; border-bottom:2px solid #000; border-radius:0; border-color:#000;}
+    .ticket::before, .ticket::after{display:none;}
+    .eyebrow{color:#555 !important;}
+    .conn-dot{display:none;}
+    .ticket h1{color:#000;}
+    .meta-field label{color:#555 !important;}
+    .meta-field input{background:#fff !important; border:1px solid #999 !important; color:#000 !important;}
+    .perf{display:none;}
+    .categories, .summary, .add-cat{background:#fff !important; border-color:#000 !important;}
+    .item:nth-child(odd){background:#f5f5f5 !important;}
+    .item-name{color:#000; font-weight:600;}
+    .cat-head h2{color:#000;}
+    .add-item-row, .add-cat, .del-item, .del-cat, .btn, .status-btn, .modal-overlay{display:none !important;}
+    .status-tag{
+      display:inline-block !important;
+      font-family:'IBM Plex Mono', monospace;
+      font-size:12px;
+      font-weight:700;
+      padding:3px 10px;
+      border-radius:5px;
+    }
+    .status-tag.good{color:#0a3d6b; background:#dbeafd;}
+    .status-tag.bad{color:#7a3213; background:#fbe6da;}
+    .status-tag.none{color:#666; background:#eee;}
+    .comment-box textarea{border:1px solid #c5602a; background:#fff !important; color:#000;}
+    .final-note{background:#fff !important; color:#000; border-color:#000;}
+    .sum-pill{color:#000 !important; background:#eee !important; border-color:#999 !important;}
+    .summary{border-top:2px solid #000;}
+    .cat{break-inside:avoid;}
+  }
+  .status-tag{display:none;}
+</style>
+</head>
+<body>
+
+<div class="config-banner" id="configBanner">
+  ⚠️ التطبيق مش متصل بقاعدة البيانات. تأكد إنك حطيت بيانات <code>firebaseConfig</code> الصحيحة بالكود، وإنه Firestore مفعّل، وإن الـ Rules منشورة (Publish). راجع رسالة الخطأ بالـ Console (F12) للتفاصيل.
+</div>
+
+<div class="wrap">
+
+  <div class="ticket">
+    <div class="eyebrow">
+      <span>تقرير فحص ميداني — قسم الصيانة</span>
+      <span class="conn-dot" id="connDot"><span class="dot"></span><span id="connText">يتصل...</span></span>
+    </div>
+    <h1>سجل فحص الموقع</h1>
+    <div class="meta-grid">
+      <div class="meta-field">
+        <label>رقم / اسم الموقع</label>
+        <input id="siteId" type="text" placeholder="مثال: بيت 14 - حي النزهة">
+      </div>
+      <div class="meta-field">
+        <label>اسم الفاحص</label>
+        <input id="inspector" type="text" placeholder="اسم الشاب">
+      </div>
+      <div class="meta-field" style="grid-column:1 / -1;">
+        <label>التاريخ والوقت</label>
+        <input id="datetime" type="datetime-local">
+      </div>
+    </div>
+  </div>
+  <div class="perf"></div>
+
+  <div class="categories" id="categories"></div>
+
+  <div class="add-cat">
+    <input id="newCatName" type="text" placeholder="اسم قسم جديد... مثال: الحديقة">
+    <button onclick="addCategory()">إضافة قسم</button>
+  </div>
+
+  <div class="summary">
+    <div class="sum-row" id="summaryRow"></div>
+    <textarea class="final-note" id="finalNote" placeholder="ملاحظات عامة على الفحص كامل (اختياري)..."></textarea>
+    <div class="actions">
+      <button class="btn btn-save" id="saveBtn" onclick="saveInspection()">💾 حفظ الفحص</button>
+      <button class="btn btn-ghost" onclick="openHistory()">📂 الفحوصات السابقة</button>
+      <button class="btn btn-primary" onclick="window.print()">🖨️ طباعة</button>
+      <button class="btn btn-ghost" onclick="resetAll()">فحص جديد</button>
+    </div>
+    <div class="save-status" id="saveStatus"></div>
+    <div class="hint">الحفظ يخزّن الفحص بقاعدة بيانات حقيقية — تقدر تشوفه من أي جهاز. الطباعة تفتح نافذة المتصفح وتقدر تحفظها PDF من هناك.</div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="histOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>الفحوصات المحفوظة</h3>
+      <button class="modal-close" onclick="closeHistory()">✕</button>
+    </div>
+    <div id="histList"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getFirestore, collection, doc, setDoc, getDocs, deleteDoc, query, orderBy
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+/* ====== حط بيانات مشروعك هون ====== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDXaUd6L4yfAvqJXgXJ5jTCsNGRIspNZAk",
+  authDomain: "maintenance-v1-bce45.firebaseapp.com",
+  projectId: "maintenance-v1-bce45",
+  storageBucket: "maintenance-v1-bce45.firebasestorage.app",
+  messagingSenderId: "668950595803",
+  appId: "1:668950595803:web:c0dd1f864150f488cf24fe"
+};
+/* =================================== */
+
+let db = null;
+let firebaseReady = false;
+
+try{
+  const app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  firebaseReady = true;
+}catch(e){
+  console.error("Firebase init error:", e);
+}
+
+const DEFAULT_DATA = [
+  {name:"الشبابيك والأبواب", items:["الشبابيك","الأبواب الخارجية","الأبواب الداخلية","المفصلات والأقفال"]},
+  {name:"الكهرباء", items:["مفاتيح الكهرباء","الإنارة","الأفياش (البرايز)","لوحة الكهرباء الرئيسية"]},
+  {name:"السباكة", items:["الحنفيات","المغاسل","المرحاض / الحمام","تسريب المياه","صرف المياه"]},
+  {name:"التكييف والتدفئة", items:["المكيفات","سخان الماء","التدفئة"]},
+  {name:"الجدران والدهان", items:["الدهان","تشققات بالجدار","رطوبة / تسريب"]},
+  {name:"المطبخ", items:["خزائن المطبخ","الشفاط","تمديدات الغاز"]},
+  {name:"السلامة العامة", items:["كاشف الدخان","طفاية الحريق","إنارة الطوارئ"]},
+];
+
+let state = { cats: [] };
+let idCounter = 1;
+let currentInspectionId = null;
+let historyCache = [];
+
+function freshItem(name){ return {id:idCounter++, name, status:null, comment:""}; }
+function loadDefaults(){
+  state.cats = DEFAULT_DATA.map(c => ({ id:idCounter++, name:c.name, items:c.items.map(freshItem) }));
+}
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+function render(){
+  const root = document.getElementById('categories');
+  root.innerHTML = '';
+  state.cats.forEach(cat=>{
+    const catEl = document.createElement('div');
+    catEl.className='cat';
+    const goodCount = cat.items.filter(i=>i.status==='good').length;
+    const badCount = cat.items.filter(i=>i.status==='bad').length;
+    catEl.innerHTML = `
+      <div class="cat-head">
+        <h2>${escapeHtml(cat.name)}</h2>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="cat-count">${goodCount}✓ / ${badCount}✕ من ${cat.items.length}</span>
+          <button class="del-cat" data-act="delcat" data-cat="${cat.id}">حذف القسم</button>
+        </div>
+      </div>
+    `;
+    cat.items.forEach(item=>{
+      const row = document.createElement('div');
+      row.className='item';
+      row.innerHTML = `
+        <div class="item-name">${escapeHtml(item.name)}</div>
+        <span class="status-tag ${item.status==='good'?'good':item.status==='bad'?'bad':'none'}">
+          ${item.status==='good'?'جيد':item.status==='bad'?'بحاجة لتصليح':'لم يُفحص'}
+        </span>
+        <div class="status-btns">
+          <button class="status-btn good ${item.status==='good'?'active':''}" data-act="status" data-cat="${cat.id}" data-item="${item.id}" data-val="good">جيد</button>
+          <button class="status-btn bad ${item.status==='bad'?'active':''}" data-act="status" data-cat="${cat.id}" data-item="${item.id}" data-val="bad">بحاجة لتصليح</button>
+        </div>
+        <button class="del-item" title="حذف" data-act="delitem" data-cat="${cat.id}" data-item="${item.id}">✕</button>
+        ${item.status==='bad' ? `
+          <div class="comment-box">
+            <textarea placeholder="اكتب وش المشكلة بالضبط..." data-act="comment" data-cat="${cat.id}" data-item="${item.id}">${escapeHtml(item.comment)}</textarea>
+          </div>` : ''}
+      `;
+      catEl.appendChild(row);
+    });
+    const addRow = document.createElement('div');
+    addRow.className='add-item-row';
+    addRow.innerHTML = `
+      <input type="text" placeholder="إضافة عنصر جديد لهذا القسم..." id="add-input-${cat.id}">
+      <button data-act="additem" data-cat="${cat.id}">إضافة</button>
+    `;
+    catEl.appendChild(addRow);
+    root.appendChild(catEl);
+  });
+  renderSummary();
+}
+
+function renderSummary(){
+  const all = state.cats.flatMap(c=>c.items);
+  const good = all.filter(i=>i.status==='good').length;
+  const bad = all.filter(i=>i.status==='bad').length;
+  const pending = all.length - good - bad;
+  document.getElementById('summaryRow').innerHTML = `
+    <span class="sum-pill">إجمالي العناصر: ${all.length}</span>
+    <span class="sum-pill good">جيد: ${good}</span>
+    <span class="sum-pill bad">بحاجة لتصليح: ${bad}</span>
+    <span class="sum-pill">لم يُفحص: ${pending}</span>
+  `;
+}
+
+function setStatus(catId, itemId, status){
+  const cat = state.cats.find(c=>c.id===catId);
+  const item = cat.items.find(i=>i.id===itemId);
+  item.status = item.status===status ? null : status;
+  if(item.status!=='bad') item.comment='';
+  render();
+}
+function setComment(catId, itemId, val){
+  const cat = state.cats.find(c=>c.id===catId);
+  const item = cat.items.find(i=>i.id===itemId);
+  item.comment = val;
+}
+function deleteItem(catId, itemId){
+  const cat = state.cats.find(c=>c.id===catId);
+  cat.items = cat.items.filter(i=>i.id!==itemId);
+  render();
+}
+function deleteCategory(catId){
+  state.cats = state.cats.filter(c=>c.id!==catId);
+  render();
+}
+function addItem(catId){
+  const input = document.getElementById('add-input-'+catId);
+  const name = input.value.trim();
+  if(!name) return;
+  const cat = state.cats.find(c=>c.id===catId);
+  cat.items.push(freshItem(name));
+  render();
+}
+function addCategory(){
+  const input = document.getElementById('newCatName');
+  const name = input.value.trim();
+  if(!name) return;
+  state.cats.push({id:idCounter++, name, items:[]});
+  input.value='';
+  render();
+}
+function setNowDatetime(){
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  document.getElementById('datetime').value = now.toISOString().slice(0,16);
+}
+function resetAll(){
+  if(!confirm('بدك تبدأ فحص جديد؟ رح تنمسح كل البيانات الحالية إذا ما كنت حفظتها.')) return;
+  document.getElementById('siteId').value='';
+  document.getElementById('inspector').value='';
+  document.getElementById('finalNote').value='';
+  setNowDatetime();
+  loadDefaults();
+  currentInspectionId = null;
+  document.getElementById('saveStatus').textContent = '';
+  render();
+}
+
+/* ---------- Firestore persistence ---------- */
+
+function buildRecord(){
+  return {
+    siteId: document.getElementById('siteId').value.trim(),
+    inspector: document.getElementById('inspector').value.trim(),
+    datetime: document.getElementById('datetime').value,
+    finalNote: document.getElementById('finalNote').value,
+    cats: state.cats,
+    idCounter
+  };
+}
+
+async function saveInspection(){
+  const statusEl = document.getElementById('saveStatus');
+  if(!firebaseReady || !db){
+    statusEl.textContent = 'مش متصل بقاعدة البيانات، شيك على الإعدادات';
+    return;
+  }
+  try{
+    if(!currentInspectionId){
+      currentInspectionId = 'insp_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    }
+    const record = buildRecord();
+    await setDoc(doc(db, 'inspections', currentInspectionId), record);
+    statusEl.textContent = 'تم الحفظ ✓ — محفوظ بقاعدة البيانات، أي حدا من الفريق يقدر يشوفه';
+  }catch(e){
+    console.error(e);
+    statusEl.textContent = 'صار خطأ بالحفظ: ' + (e.message || 'تأكد من الاتصال والإعدادات');
+  }
+}
+
+async function openHistory(){
+  const overlay = document.getElementById('histOverlay');
+  const listEl = document.getElementById('histList');
+  listEl.innerHTML = '<div class="hist-empty">جاري التحميل...</div>';
+  overlay.classList.add('open');
+  if(!firebaseReady || !db){
+    listEl.innerHTML = '<div class="hist-empty">مش متصل بقاعدة البيانات</div>';
+    return;
+  }
+  try{
+    const q = query(collection(db, 'inspections'), orderBy('datetime', 'desc'));
+    const snap = await getDocs(q);
+    historyCache = [];
+    snap.forEach(d => historyCache.push({ key: d.id, rec: d.data() }));
+    if(historyCache.length===0){
+      listEl.innerHTML = '<div class="hist-empty">ما في فحوصات محفوظة لسا</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    historyCache.forEach(({key, rec})=>{
+      const all = (rec.cats||[]).flatMap(c=>c.items);
+      const good = all.filter(i=>i.status==='good').length;
+      const bad = all.filter(i=>i.status==='bad').length;
+      const dt = rec.datetime ? rec.datetime.replace('T',' ') : '—';
+      const el = document.createElement('div');
+      el.className = 'hist-item';
+      el.innerHTML = `
+        <div class="hist-main" data-act="loadhist" data-key="${key}" style="flex:1;">
+          <span class="hist-site">${escapeHtml(rec.siteId || 'بدون اسم موقع')}</span>
+          <span class="hist-sub">${dt} — ${escapeHtml(rec.inspector || 'بدون اسم فاحص')}</span>
+        </div>
+        <div class="hist-badges">
+          <span class="hist-badge good">${good}✓</span>
+          <span class="hist-badge bad">${bad}✕</span>
+        </div>
+        <button class="hist-del" data-act="delhist" data-key="${key}">🗑️</button>
+      `;
+      listEl.appendChild(el);
+    });
+  }catch(e){
+    console.error(e);
+    listEl.innerHTML = '<div class="hist-empty">صار خطأ بتحميل السجل، شيك الاتصال</div>';
+  }
+}
+function closeHistory(){
+  document.getElementById('histOverlay').classList.remove('open');
+}
+function loadInspectionFromCache(key){
+  const found = historyCache.find(h => h.key===key);
+  if(!found) return;
+  const rec = found.rec;
+  document.getElementById('siteId').value = rec.siteId || '';
+  document.getElementById('inspector').value = rec.inspector || '';
+  document.getElementById('datetime').value = rec.datetime || '';
+  document.getElementById('finalNote').value = rec.finalNote || '';
+  state.cats = rec.cats || [];
+  idCounter = (rec.idCounter || 0) + 1000;
+  currentInspectionId = key;
+  document.getElementById('saveStatus').textContent = 'تم تحميل الفحص المحفوظ بتاريخ ' + (rec.datetime||'').replace('T',' ');
+  closeHistory();
+  render();
+}
+async function deleteInspection(key){
+  if(!confirm('حذف هذا الفحص نهائيًا؟')) return;
+  try{
+    await deleteDoc(doc(db, 'inspections', key));
+    openHistory();
+  }catch(e){
+    alert('صار خطأ بالحذف: ' + (e.message||''));
+  }
+}
+
+/* ---------- Event delegation (works fine as ES module) ---------- */
+document.getElementById('categories').addEventListener('click', (e)=>{
+  const t = e.target.closest('[data-act]');
+  if(!t) return;
+  const act = t.dataset.act;
+  if(act==='status') setStatus(Number(t.dataset.cat), Number(t.dataset.item), t.dataset.val);
+  else if(act==='delitem') deleteItem(Number(t.dataset.cat), Number(t.dataset.item));
+  else if(act==='delcat') deleteCategory(Number(t.dataset.cat));
+  else if(act==='additem') addItem(Number(t.dataset.cat));
+});
+document.getElementById('categories').addEventListener('change', (e)=>{
+  const t = e.target.closest('[data-act="comment"]');
+  if(!t) return;
+  setComment(Number(t.dataset.cat), Number(t.dataset.item), t.value);
+});
+document.getElementById('histList').addEventListener('click', (e)=>{
+  const del = e.target.closest('[data-act="delhist"]');
+  if(del){ e.stopPropagation(); deleteInspection(del.dataset.key); return; }
+  const load = e.target.closest('[data-act="loadhist"]');
+  if(load){ loadInspectionFromCache(load.dataset.key); }
+});
+
+/* Expose functions used by inline onclick in the static HTML */
+window.addCategory = addCategory;
+window.saveInspection = saveInspection;
+window.openHistory = openHistory;
+window.closeHistory = closeHistory;
+window.resetAll = resetAll;
+
+/* ---------- Connection check ---------- */
+async function checkConnection(){
+  const dot = document.getElementById('connDot');
+  const text = document.getElementById('connText');
+  const banner = document.getElementById('configBanner');
+  const saveBtn = document.getElementById('saveBtn');
+  if(!firebaseReady || !db){
+    dot.classList.add('err'); text.textContent='غير متصل';
+    banner.classList.add('show');
+    saveBtn.disabled = true;
+    return;
+  }
+  try{
+    await getDocs(collection(db, 'inspections'));
+    dot.classList.add('ok'); text.textContent='متصل';
+    banner.classList.remove('show');
+    saveBtn.disabled = false;
+  }catch(e){
+    console.error(e);
+    dot.classList.add('err'); text.textContent='غير متصل';
+    banner.classList.add('show');
+    saveBtn.disabled = true;
+  }
+}
+
+loadDefaults();
+render();
+setNowDatetime();
+checkConnection();
+</script>
+</body>
+</html>
