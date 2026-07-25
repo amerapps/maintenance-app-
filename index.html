@@ -123,6 +123,18 @@
   }
   .meta-field input::placeholder{color:#5c6879;}
   .meta-field input:focus{outline:2px solid var(--blue); outline-offset:1px;}
+  .meta-field input#datetime{cursor:pointer;}
+
+  .header-actions{
+    display:flex;
+    gap:8px;
+    margin-top:4px;
+  }
+  .header-actions .btn{
+    padding:8px 14px;
+    font-size:12.5px;
+    flex:1 1 auto;
+  }
 
   .perf{
     height:14px;
@@ -376,6 +388,18 @@
     color:#fff;
   }
   .modal-close{background:none; border:none; color:var(--muted); font-size:22px; cursor:pointer; line-height:1;}
+  .hist-search{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:9px 12px;
+    font-size:13.5px;
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    background:var(--surface-alt);
+    color:var(--text);
+    margin-bottom:12px;
+  }
+  .hist-search::placeholder{color:var(--muted);}
   .hist-item{
     display:flex; justify-content:space-between; align-items:center; gap:10px;
     border:1px solid var(--line);
@@ -430,6 +454,15 @@
     .cat{break-inside:avoid;}
   }
   .status-tag{display:none;}
+  .app-footer{
+    text-align:center;
+    color:#4f5866;
+    font-size:11px;
+    font-family:'IBM Plex Mono', monospace;
+    letter-spacing:.03em;
+    margin-top:18px;
+  }
+  @media print{ .app-footer{color:#000 !important;} }
 </style>
 </head>
 <body>
@@ -457,7 +490,11 @@
       </div>
       <div class="meta-field" style="grid-column:1 / -1;">
         <label>التاريخ والوقت</label>
-        <input id="datetime" type="datetime-local">
+        <input id="datetime" type="datetime-local" readonly onclick="this.showPicker && this.showPicker()" onfocus="this.showPicker && this.showPicker()">
+      </div>
+      <div class="header-actions" style="grid-column:1 / -1;">
+        <button class="btn btn-ghost" onclick="openHistory()">📂 الفحوصات السابقة</button>
+        <button class="btn btn-ghost" onclick="resetAll()">فحص جديد</button>
       </div>
     </div>
   </div>
@@ -475,14 +512,13 @@
     <textarea class="final-note" id="finalNote" placeholder="ملاحظات عامة على الفحص كامل (اختياري)..."></textarea>
     <div class="actions">
       <button class="btn btn-save" id="saveBtn" onclick="saveInspection()">💾 حفظ الفحص</button>
-      <button class="btn btn-ghost" onclick="openHistory()">📂 الفحوصات السابقة</button>
       <button class="btn btn-primary" onclick="window.print()">🖨️ طباعة</button>
-      <button class="btn btn-ghost" onclick="resetAll()">فحص جديد</button>
     </div>
     <div class="save-status" id="saveStatus"></div>
     <div class="hint">الحفظ يخزّن الفحص بقاعدة بيانات حقيقية — تقدر تشوفه من أي جهاز. الطباعة تفتح نافذة المتصفح وتقدر تحفظها PDF من هناك.</div>
   </div>
 
+  <div class="app-footer">Created by Amer A Al-Hbahbeh</div>
 </div>
 
 <div class="modal-overlay" id="histOverlay">
@@ -491,6 +527,7 @@
       <h3>الفحوصات المحفوظة</h3>
       <button class="modal-close" onclick="closeHistory()">✕</button>
     </div>
+    <input id="histSearch" class="hist-search" type="text" placeholder="دور باسم الموقع أو اسم الفاحص...">
     <div id="histList"></div>
   </div>
 </div>
@@ -538,9 +575,39 @@ let idCounter = 1;
 let currentInspectionId = null;
 let historyCache = [];
 
+const TEMPLATE_KEY = 'maintenanceTemplate';
+
+function loadTemplate(){
+  try{
+    const raw = localStorage.getItem(TEMPLATE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){ console.error('تعذر قراءة القالب المحفوظ:', e); }
+  return DEFAULT_DATA;
+}
+function saveTemplate(tpl){
+  try{ localStorage.setItem(TEMPLATE_KEY, JSON.stringify(tpl)); }
+  catch(e){ console.error('تعذر حفظ القالب:', e); }
+}
+function addItemToTemplate(catName, itemName){
+  const tpl = loadTemplate();
+  const cat = tpl.find(c => c.name === catName);
+  if(cat){
+    if(!cat.items.includes(itemName)) cat.items.push(itemName);
+  }else{
+    tpl.push({ name: catName, items: [itemName] });
+  }
+  saveTemplate(tpl);
+}
+function addCategoryToTemplate(catName){
+  const tpl = loadTemplate();
+  if(!tpl.find(c => c.name === catName)) tpl.push({ name: catName, items: [] });
+  saveTemplate(tpl);
+}
+
 function freshItem(name){ return {id:idCounter++, name, status:null, comment:""}; }
 function loadDefaults(){
-  state.cats = DEFAULT_DATA.map(c => ({ id:idCounter++, name:c.name, items:c.items.map(freshItem) }));
+  const tpl = loadTemplate();
+  state.cats = tpl.map(c => ({ id:idCounter++, name:c.name, items:c.items.map(freshItem) }));
 }
 function escapeHtml(s){
   const d = document.createElement('div');
@@ -637,6 +704,7 @@ function addItem(catId){
   if(!name) return;
   const cat = state.cats.find(c=>c.id===catId);
   cat.items.push(freshItem(name));
+  addItemToTemplate(cat.name, name);
   render();
 }
 function addCategory(){
@@ -644,6 +712,7 @@ function addCategory(){
   const name = input.value.trim();
   if(!name) return;
   state.cats.push({id:idCounter++, name, items:[]});
+  addCategoryToTemplate(name);
   input.value='';
   render();
 }
@@ -696,9 +765,50 @@ async function saveInspection(){
   }
 }
 
+function renderHistList(filterText){
+  const listEl = document.getElementById('histList');
+  const f = (filterText||'').trim().toLowerCase();
+  const filtered = !f ? historyCache : historyCache.filter(({rec})=>{
+    const site = (rec.siteId||'').toLowerCase();
+    const inspector = (rec.inspector||'').toLowerCase();
+    return site.includes(f) || inspector.includes(f);
+  });
+  if(historyCache.length===0){
+    listEl.innerHTML = '<div class="hist-empty">ما في فحوصات محفوظة لسا</div>';
+    return;
+  }
+  if(filtered.length===0){
+    listEl.innerHTML = '<div class="hist-empty">ما في نتائج مطابقة</div>';
+    return;
+  }
+  listEl.innerHTML = '';
+  filtered.forEach(({key, rec})=>{
+    const all = (rec.cats||[]).flatMap(c=>c.items);
+    const good = all.filter(i=>i.status==='good').length;
+    const bad = all.filter(i=>i.status==='bad').length;
+    const dt = rec.datetime ? rec.datetime.replace('T',' ') : '—';
+    const el = document.createElement('div');
+    el.className = 'hist-item';
+    el.innerHTML = `
+      <div class="hist-main" data-act="loadhist" data-key="${key}" style="flex:1;">
+        <span class="hist-site">${escapeHtml(rec.siteId || 'بدون اسم موقع')}</span>
+        <span class="hist-sub">${dt} — ${escapeHtml(rec.inspector || 'بدون اسم فاحص')}</span>
+      </div>
+      <div class="hist-badges">
+        <span class="hist-badge good">${good}✓</span>
+        <span class="hist-badge bad">${bad}✕</span>
+      </div>
+      <button class="hist-del" data-act="delhist" data-key="${key}">🗑️</button>
+    `;
+    listEl.appendChild(el);
+  });
+}
+
 async function openHistory(){
   const overlay = document.getElementById('histOverlay');
   const listEl = document.getElementById('histList');
+  const searchEl = document.getElementById('histSearch');
+  searchEl.value = '';
   listEl.innerHTML = '<div class="hist-empty">جاري التحميل...</div>';
   overlay.classList.add('open');
   if(!firebaseReady || !db){
@@ -710,31 +820,7 @@ async function openHistory(){
     const snap = await getDocs(q);
     historyCache = [];
     snap.forEach(d => historyCache.push({ key: d.id, rec: d.data() }));
-    if(historyCache.length===0){
-      listEl.innerHTML = '<div class="hist-empty">ما في فحوصات محفوظة لسا</div>';
-      return;
-    }
-    listEl.innerHTML = '';
-    historyCache.forEach(({key, rec})=>{
-      const all = (rec.cats||[]).flatMap(c=>c.items);
-      const good = all.filter(i=>i.status==='good').length;
-      const bad = all.filter(i=>i.status==='bad').length;
-      const dt = rec.datetime ? rec.datetime.replace('T',' ') : '—';
-      const el = document.createElement('div');
-      el.className = 'hist-item';
-      el.innerHTML = `
-        <div class="hist-main" data-act="loadhist" data-key="${key}" style="flex:1;">
-          <span class="hist-site">${escapeHtml(rec.siteId || 'بدون اسم موقع')}</span>
-          <span class="hist-sub">${dt} — ${escapeHtml(rec.inspector || 'بدون اسم فاحص')}</span>
-        </div>
-        <div class="hist-badges">
-          <span class="hist-badge good">${good}✓</span>
-          <span class="hist-badge bad">${bad}✕</span>
-        </div>
-        <button class="hist-del" data-act="delhist" data-key="${key}">🗑️</button>
-      `;
-      listEl.appendChild(el);
-    });
+    renderHistList('');
   }catch(e){
     console.error(e);
     listEl.innerHTML = '<div class="hist-empty">صار خطأ بتحميل السجل، شيك الاتصال</div>';
@@ -782,6 +868,9 @@ document.getElementById('categories').addEventListener('change', (e)=>{
   const t = e.target.closest('[data-act="comment"]');
   if(!t) return;
   setComment(Number(t.dataset.cat), Number(t.dataset.item), t.value);
+});
+document.getElementById('histSearch').addEventListener('input', (e)=>{
+  renderHistList(e.target.value);
 });
 document.getElementById('histList').addEventListener('click', (e)=>{
   const del = e.target.closest('[data-act="delhist"]');
