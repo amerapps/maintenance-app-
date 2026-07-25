@@ -469,6 +469,17 @@
     .cat{break-inside:avoid;}
   }
   .status-tag{display:none;}
+  .status-tag.view-tag{
+    display:inline-block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    font-weight:700;
+    padding:4px 11px;
+    border-radius:6px;
+  }
+  .status-tag.view-tag.good{background:var(--blue-bg); color:var(--blue);}
+  .status-tag.view-tag.bad{background:var(--orange-bg); color:var(--orange);}
+  .status-tag.view-tag.none{background:rgba(255,255,255,.06); color:var(--muted);}
 
   .login-overlay{
     display:none;
@@ -968,7 +979,7 @@ function render(){
       row.className='item';
       row.innerHTML = `
         <div class="item-name">${escapeHtml(item.name)}</div>
-        <span class="status-tag ${item.status==='good'?'good':item.status==='bad'?'bad':'none'}">
+        <span class="status-tag ${viewOnlyMode?'view-tag ':''}${item.status==='good'?'good':item.status==='bad'?'bad':'none'}">
           ${item.status==='good'?'جيد':item.status==='bad'?'بحاجة لتصليح':'لم يُفحص'}
         </span>
         ${viewOnlyMode ? '' : `
