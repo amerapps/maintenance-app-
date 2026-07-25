@@ -600,7 +600,6 @@
       <button class="btn btn-primary" onclick="window.print()">🖨️ طباعة</button>
     </div>
     <div class="save-status" id="saveStatus"></div>
-    <div class="hint">الحفظ يخزّن الفحص بقاعدة بيانات حقيقية — تقدر تشوفه من أي جهاز. الطباعة تفتح نافذة المتصفح وتقدر تحفظها PDF من هناك.</div>
   </div>
 
   <div class="app-footer">Created by Amer A Al-Hbahbeh</div>
@@ -649,8 +648,6 @@
   <div class="login-card">
     <div class="login-eyebrow">تقرير فحص ميداني — قسم الصيانة</div>
     <h2>تسجيل الدخول</h2>
-    <label>الاسم</label>
-    <select id="loginName"></select>
     <label>رمز الدخول</label>
     <input id="loginPin" type="password" placeholder="اكتب رمزك" autocomplete="off">
     <button class="btn btn-save" style="width:100%; margin-top:14px;" onclick="attemptLogin()">دخول</button>
@@ -803,33 +800,23 @@ async function saveTeam(team){
 }
 
 function populateLoginSelect(){
-  const sel = document.getElementById('loginName');
-  sel.innerHTML = '';
-  const optAdmin = document.createElement('option');
-  optAdmin.value = teamData.admin.name;
-  optAdmin.textContent = teamData.admin.name + ' (مدير)';
-  sel.appendChild(optAdmin);
-  teamData.inspectors.forEach(p=>{
-    const opt = document.createElement('option');
-    opt.value = p.name;
-    opt.textContent = p.name;
-    sel.appendChild(opt);
-  });
+  /* لم يعد في خانة اسم بصفحة الدخول - الاسم بينحدد تلقائيًا من الرمز */
 }
 
 function attemptLogin(){
-  const name = document.getElementById('loginName').value;
   const pin = document.getElementById('loginPin').value.trim();
   const errEl = document.getElementById('loginError');
   let role = null;
-  if(teamData.admin.name === name && teamData.admin.pin === pin){
+  let name = null;
+  if(teamData.admin.pin === pin){
     role = 'admin';
+    name = teamData.admin.name;
   }else{
-    const insp = teamData.inspectors.find(p => p.name === name && p.pin === pin);
-    if(insp) role = 'inspector';
+    const insp = teamData.inspectors.find(p => p.pin === pin);
+    if(insp){ role = 'inspector'; name = insp.name; }
   }
   if(!role){
-    errEl.textContent = 'الاسم أو الرمز غلط، جرب مرة ثانية';
+    errEl.textContent = 'الرمز غلط، جرب مرة ثانية';
     return;
   }
   errEl.textContent = '';
