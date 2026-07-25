@@ -535,7 +535,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
-  getFirestore, collection, doc, setDoc, getDocs, deleteDoc, query, orderBy
+  getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, query, orderBy
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 /* ====== حط بيانات مشروعك هون ====== */
@@ -576,37 +576,52 @@ let currentInspectionId = null;
 let historyCache = [];
 
 const TEMPLATE_KEY = 'maintenanceTemplate';
+const TEMPLATE_DOC = () => doc(db, 'config', 'template');
 
-function loadTemplate(){
+async function loadTemplate(){
+  if(firebaseReady && db){
+    try{
+      const snap = await getDoc(TEMPLATE_DOC());
+      if(snap.exists() && Array.isArray(snap.data().cats)){
+        const tpl = snap.data().cats;
+        try{ localStorage.setItem(TEMPLATE_KEY, JSON.stringify(tpl)); }catch(e){}
+        return tpl;
+      }
+    }catch(e){ console.error('تعذر جلب القالب من قاعدة البيانات:', e); }
+  }
   try{
     const raw = localStorage.getItem(TEMPLATE_KEY);
     if(raw) return JSON.parse(raw);
-  }catch(e){ console.error('تعذر قراءة القالب المحفوظ:', e); }
+  }catch(e){ console.error('تعذر قراءة القالب المحفوظ محليًا:', e); }
   return DEFAULT_DATA;
 }
-function saveTemplate(tpl){
+async function saveTemplate(tpl){
   try{ localStorage.setItem(TEMPLATE_KEY, JSON.stringify(tpl)); }
-  catch(e){ console.error('تعذر حفظ القالب:', e); }
+  catch(e){ console.error('تعذر حفظ القالب محليًا:', e); }
+  if(firebaseReady && db){
+    try{ await setDoc(TEMPLATE_DOC(), { cats: tpl }); }
+    catch(e){ console.error('تعذر حفظ القالب بقاعدة البيانات:', e); }
+  }
 }
-function addItemToTemplate(catName, itemName){
-  const tpl = loadTemplate();
+async function addItemToTemplate(catName, itemName){
+  const tpl = await loadTemplate();
   const cat = tpl.find(c => c.name === catName);
   if(cat){
     if(!cat.items.includes(itemName)) cat.items.push(itemName);
   }else{
     tpl.push({ name: catName, items: [itemName] });
   }
-  saveTemplate(tpl);
+  await saveTemplate(tpl);
 }
-function addCategoryToTemplate(catName){
-  const tpl = loadTemplate();
+async function addCategoryToTemplate(catName){
+  const tpl = await loadTemplate();
   if(!tpl.find(c => c.name === catName)) tpl.push({ name: catName, items: [] });
-  saveTemplate(tpl);
+  await saveTemplate(tpl);
 }
 
 function freshItem(name){ return {id:idCounter++, name, status:null, comment:""}; }
-function loadDefaults(){
-  const tpl = loadTemplate();
+async function loadDefaults(){
+  const tpl = await loadTemplate();
   state.cats = tpl.map(c => ({ id:idCounter++, name:c.name, items:c.items.map(freshItem) }));
 }
 function escapeHtml(s){
@@ -698,36 +713,36 @@ function deleteCategory(catId){
   state.cats = state.cats.filter(c=>c.id!==catId);
   render();
 }
-function addItem(catId){
+async function addItem(catId){
   const input = document.getElementById('add-input-'+catId);
   const name = input.value.trim();
   if(!name) return;
   const cat = state.cats.find(c=>c.id===catId);
   cat.items.push(freshItem(name));
-  addItemToTemplate(cat.name, name);
   render();
+  await addItemToTemplate(cat.name, name);
 }
-function addCategory(){
+async function addCategory(){
   const input = document.getElementById('newCatName');
   const name = input.value.trim();
   if(!name) return;
   state.cats.push({id:idCounter++, name, items:[]});
-  addCategoryToTemplate(name);
   input.value='';
   render();
+  await addCategoryToTemplate(name);
 }
 function setNowDatetime(){
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   document.getElementById('datetime').value = now.toISOString().slice(0,16);
 }
-function resetAll(){
+async function resetAll(){
   if(!confirm('بدك تبدأ فحص جديد؟ رح تنمسح كل البيانات الحالية إذا ما كنت حفظتها.')) return;
   document.getElementById('siteId').value='';
   document.getElementById('inspector').value='';
   document.getElementById('finalNote').value='';
   setNowDatetime();
-  loadDefaults();
+  await loadDefaults();
   currentInspectionId = null;
   document.getElementById('saveStatus').textContent = '';
   render();
@@ -911,10 +926,12 @@ async function checkConnection(){
   }
 }
 
-loadDefaults();
-render();
-setNowDatetime();
-checkConnection();
+(async function init(){
+  await loadDefaults();
+  render();
+  setNowDatetime();
+  checkConnection();
+})();
 </script>
 </body>
 </html>
